@@ -1,0 +1,521 @@
+# Project 3: Prosper贷款数据分析
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+## 加载功能包
+library(ggplot2)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(GGally)
+library(gridExtra)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Load_the_Data}
+## 加载数据
+df_loan <- read.csv('prosperLoanData.txt')
+# 选取所需变量
+df_loan1 <- select(df_loan, ListingKey, ListingCreationDate, CreditGrade, LoanStatus,  BorrowerAPR, Occupation, EmploymentStatusDuration, IsBorrowerHomeowner, TotalCreditLinespast7years, DelinquenciesLast7Years, DebtToIncomeRatio, IncomeRange,TradesNeverDelinquent..percentage., LoanOriginalAmount)
+# 存储新数据集
+write.csv(df_loan1,'df_loan1.csv',row.names = FALSE)
+# 加载新的数据集，替换掉空字符串
+df_loan1 <- read.csv('df_loan1.csv', na.strings = c("",'NA'))
+
+#去除缺失值
+df_loan1 <- na.omit(df_loan1)
+
+#数据集基本信息
+dim(df_loan1)
+str(df_loan1)
+```
+
+## 单变量绘图选择
+### hist_plot函数自定义
+```{r}
+#将重复利用的geom_histogram可视方式自定义函数，方便后续重复使用，以使代码更加简洁
+hist_plot <- function(varname, binwidth) {
+  return(ggplot(aes_string(x = varname), data = df_loan1) + geom_histogram(binwidth = binwidth))
+}
+```
+
+### CreditGrade
+    观察图形得出，贷款信用评级占比较多主要为中等评级，其中评级C数量最多。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用bar图探索分类变量CreditGrade
+ggplot(aes(x = CreditGrade), data = df_loan1)+
+  geom_bar()+
+  ggtitle('Creadit Grade Count')
+#CreditGrade变量统计情况
+summary(df_loan1$CreditGrade)
+```
+
+
+### LoanStatus
+    通过图新观察，完成贷款还款的数量占主导，这里没有取消的数据，我可能在清理数据时把含空置空字符串的数据去掉了导致的。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#用bar图探索分类变量LoanStatus
+ggplot(aes(x = LoanStatus),data = df_loan1)+
+  geom_bar()+
+  ggtitle('Loan Staus')
+#Loanstatus变量统计情况
+summary(df_loan1$LoanStatus)
+```
+
+
+### BorrowerAPR
+    通过图形观察，年化率分布比较零散，平均值为0.17722。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#用自定义hist_plot函数探索BorrowerAPR
+#根据取值对x轴进行一定的调整
+hist_plot('BorrowerAPR', 0.005)+
+  scale_x_continuous(limits = c(0.00653,0.41355), breaks = seq(0.00653,0.41355,0.05))+
+  ggtitle('The Borrower\'s Annual Percentage Rate (APR) for the loan.')
+#变量BorrowerAPR统计情况
+summary(df_loan1$BorrowerAPR)
+```
+
+### Employment Status Duration
+    通过图形观察我们可以看出，在职时间基本呈一个右偏态，中位数在40，而右偏态图，平均值为68.96，都大于中位数，所以用中位数作为在职时间的参考比较可靠。
+    
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#用自定义函数hist_plot对EmploymentStatusDuration变量进行探索
+#根据取值对x轴进行一定的调整
+hist_plot('EmploymentStatusDuration', 5)+
+  scale_x_continuous(limits = c(0,623),breaks = seq(0,624,40))+
+  ggtitle('The length in months of employment')
+#变量EmploymentStatusDuration的统计情况
+summary(df_loan1$EmploymentStatusDuration)
+```
+
+### IsBorrowerHomeowner
+    通过图形观察得出，没有房产的群体占多数，不过相差不是很大。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用bar图探索分类变量IsBorrowerHomeowner
+ggplot(aes(x = IsBorrowerHomeowner),data = df_loan1)+
+  geom_bar(stat = 'count')
+summary(df_loan1$IsBorrowerHomeowner)
+```
+
+### TotalCreditLinespast7years
+    通过图形观察可以看出，7年贷款次数基本呈一个正态分布，平均值和中位数很相近。普遍贷款次数在23次左右，可见7年内贷款的次数还是比较多的，对于借贷公司来说是一件好事。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用自定义hist_plot探索TotalCreditLinespast7years变量
+#根据取值及数据分布对x轴做出调整
+hist_plot('TotalCreditLinespast7years', 1)+
+  scale_x_continuous(limits = c(2,87), breaks = seq(2,87,5))+
+  ggtitle('Number of credit lines in the past seven years')
+summary(df_loan1$TotalCreditLinespast7years)
+```
+
+### DelinquenciesLast7Years
+    通过图形观察，7年欠款次数呈右偏态，说明整体欠款数量随次数呈递减的，拖欠数次贷款的群体还是占少数，对公司也是比较好的一个情况。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用自定义hist_plot对DelinquenciesLast7Years变量进行探索
+#根据变量取值对图形x，y轴进行调整
+hist_plot('DelinquenciesLast7Years', 1)+
+  scale_x_continuous(limits = c(0,75), breaks = seq(0,75,5))+
+  scale_y_continuous(limits = c(0,1000))+
+  ggtitle('Number of delinquencies in the past 7 years')
+summary(df_loan1$DelinquenciesLast7Years)
+```
+
+### DebtToIncomeRatio
+    通过图形观察，发现债收比略右偏态，中位数为0.2100
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用自定义hist_plot对DebtToIncomeRatio变量进行探索
+#根据变量取值对x轴进行调整
+hist_plot('DebtToIncomeRatio', 0.01)+
+  scale_x_continuous(limits = c(0.0000,1.1000), 
+                     breaks = seq(0.0000,1.1000,0.1000))+
+  ggtitle('The debt to income ratio of the borrower ')
+summary(df_loan1$DebtToIncomeRatio)
+```
+
+###  IncomeRange
+    通过图形观察发现，收入水平多数在¥25000-74999¥，可以看出，没有工作的人收入处在极低的水平。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用bar图对分类变量IncomeRange进行探索
+ggplot(aes(x = IncomeRange),data = df_loan1)+
+  geom_bar(stat = 'count')+
+  ggtitle('The income range of the borrower')
+summary(df_loan1$IncomeRange)
+```
+
+### TradesNeverDelinquent..percentage.
+    通过图形观察呈交易从不欠款率呈左偏态，可以看出，多数欠款是按时还清了的，中位数为0.8600。
+    
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用自定义hist_plot对变量TradesNeverDelinquent..percentage.进行探索
+hist_plot('TradesNeverDelinquent..percentage.', 0.01)+
+  xlab('TradesNeverDelinquent')+
+  ggtitle('Number of trades that have never been delinquent(percentage)')
+summary(df_loan1$TradesNeverDelinquent..percentage.)
+```
+
+### LoanOriginalAmount
+    从图形观察得出，初始贷款金额不分布零散，不具有规律，应该受到许多不同因素的有影响，平均初始贷款金额为5000
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用自定义hist_plot对变量LoanOriginalAmount进行探索
+#根据变量取值对x轴进行调整
+hist_plot('LoanOriginalAmount', 100)+
+  scale_x_continuous( breaks = seq(1000,25000,2000))+
+  ggtitle('The origination amount of the loan')
+summary(df_loan1$LoanOriginalAmount)
+```
+
+
+# 单变量分析
+
+### 你的数据集结构是什么？
+- 我的数据结构清理过后是：14个变量，20223个数据行。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+str(df_loan1)
+```
+
+### 数据集内感兴趣的主要特性有哪些？
+    数据集中主要感兴趣的特性在于贷款方面的特征变量很多样，可以从不同的角度探索Prosper贷款的情况，如年化率的分布，贷款人债收比的情况，是什么因素决定了初始贷款金额，年化率与贷款人的哪些特征相关。
+### 数据集内哪些其他特征可以帮助你探索兴趣特点？
+    数据集中：BorrowerAPR，DebtToIncomeRatio，LoanOriginalAmount，为探索的主线，以及贷款人的各种特征，如IncomeRange，IsHomeowner，EmploymentDuration等为关联的特征。
+### 在已经探究的特性中，是否存在任何异常分布？是否对数据进行一些操作，如清洁、调整或改变数据的形式?为什么会这样做？
+    在探索特性中，我对含空值，NA，空字符串的数据进行了清理，为了数据统计的准确性；对于一些数据落在范围比较异常的位置的特征，在绘图时做了取值范围的缩减，为了图形呈现的状态不受干扰一些。
+
+
+## 双变量绘图选择 
+
+### CreditGrade-BorrowerAPR
+    从图形颜色区分可以看出贷款评级高的群体，年化率越低。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用频率多边形对CreditGrade-BorrowerAPR进行探索
+#将颜色设置为贷款信用评级
+ggplot(aes(x = BorrowerAPR), data = df_loan1)+
+  geom_freqpoly(stat = 'count', aes(color = CreditGrade))+
+  ggtitle('CreditGrade-BorrowerAPR')
+```
+
+
+### CreditGrade-LoanStatus
+    通过图形可以看出，信用度高的贷款还款完成情况占比高,但是总的来说堆叠图可视化效果不直观，应该慎用。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用堆叠图探索CreditGrade-LoanStatus
+#通过观察不同评级在直方图中的占比来进行对比
+ggplot(aes(x = LoanStatus), data = df_loan1)+
+  geom_bar(position = 'stack',aes(fill = CreditGrade))+
+  ggtitle('CreditGrade-LoanStatus')
+```
+
+
+### CreditGrade-EmploymentStatusDuration
+    通过箱线图可以看出，就职时间的平均时间越长相对来贷款评级会高一些，但关系不是特别的明显。
+    
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用箱线图探索CreditGrade-EmploymentStatusDuration变量
+#观察工作时长平均值的区别
+ggplot(aes(x = CreditGrade, y = EmploymentStatusDuration), data = df_loan1)+
+  geom_boxplot()+
+  scale_y_continuous(limits = c(0,100))+
+  ggtitle('CreditGrade-EmploymentStatusDuration')
+```
+
+
+### CreditGrade-DelinquenciesLast7Years
+    通过两个图的对比，低贷款等级贷款数量以及欠款数量明显大于高贷款等级。
+    
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用频率多边形观察CreditGrade与（TotalCreditLinespast7years，DelinquenciesLast7Years）
+#将颜色设置为贷款评级
+p1 <- ggplot(aes(x = TotalCreditLinespast7years), data = df_loan1)+
+  geom_freqpoly(stat = 'count', aes(color = CreditGrade))+
+  scale_x_continuous(limits = c(2,87))+
+  ggtitle('CreditGrade-TotalCreditLinespast7years')
+p2 <- ggplot(aes(x = DelinquenciesLast7Years), data = df_loan1)+
+  geom_freqpoly(stat = 'count', aes(color = CreditGrade))+
+  scale_x_continuous(limits = c(0,2.5))+
+  ggtitle('CreditGrade-DelinquenciesLast7Years')
+#使用grid.arrange将两个图一起显示
+grid.arrange(p1, p2, ncol = 1)
+```
+
+
+### CreditGrade-IsBorrowerHomeowner
+    可以从图形中看出，有房产的人贷款评级偏高的比例比没有房产的人多
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用堆叠图探索CreditGrade-IsBorrowerHomeowner双变量
+#对比不同颜色评级在有无房产变量中的占比
+ggplot(aes(x = IsBorrowerHomeowner), data = df_loan1)+
+  geom_bar(position = 'stack', aes(fill = CreditGrade))+
+  ggtitle('CreditGrade-IsBorrowerHomeowner')
+```
+
+
+### CreditGrade-DebtToIncomeRatio
+    通过箱线图不太能够直观的看出两个变量之间的关系。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用箱线图探索CreditGrade-DebtToIncomeRatio
+ggplot(aes(x = CreditGrade, y = DebtToIncomeRatio),data = df_loan1)+
+  geom_boxplot()+
+  scale_y_continuous(limits = c(0.0000,0.4000))+
+  ggtitle('CreditGrade-DebtToIncomeRatio')
+```
+
+
+### Number of trades that have never been delinquent(percentage)-CrediGrade
+    从图中可以看出贷款评级越高的人，贷款中从不欠款的比例越高。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用频率多边形探索Number of trades that have never been delinquent(percentage)-CrediGrade
+#将颜色设置为贷款信用评级
+ggplot(aes(x = TradesNeverDelinquent..percentage.,color = CreditGrade), data = df_loan1)+
+  geom_freqpoly(bins = 15)+
+  xlab('TradesNeverDelinquent')+
+  ggtitle('Number of trades that have never been delinquent(percentage)-CrediGrade')
+```
+
+
+### CreditGrade-LoanOriginalAmount_log10
+    将变量LoanOriginalAmount用log10转换之后，可以更明显看出贷款评级越高，初始贷款额平均值越高。
+    
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用箱线图探索CreditGrade-LoanOriginalAmount_log10
+#对初始贷款金额进行对数转换可以获得更好的从图形中看出趋势
+ggplot(aes(x = CreditGrade, y = LoanOriginalAmount), data = df_loan1)+
+  geom_boxplot()+
+  scale_y_log10()+
+  ylab('LoanOriginalAmount_log10')+
+  ggtitle('CreditGrade-LoanOriginalAmount_log10')
+```
+
+
+### ListingCreationDate-CreditGrade
+    通过图形看出，贷款利率与时间并不存在较强关联。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用散点图探索ListingCreationDate-CreditGrade
+#调整贷款创建时间变量
+df_loan1$ListingCreationDate <- as.Date.factor(df_loan1$ListingCreationDate)
+ggplot(aes(x = ListingCreationDate, y = BorrowerAPR), data = df_loan1)+
+  geom_point(alpha = 1/20, position = 'jitter')+
+  ggtitle('ListingCreationDate-CreditGrade')
+```
+
+
+### IncomeRange-Occupation
+    观察一下收入范围与职业之间的关系。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#通过散点图观察不同行业的收入范围
+ggplot(aes(x = IncomeRange, y = Occupation), data = df_loan1)+
+  geom_point(alpha = 1/10, position = position_jitter(h = 0))+
+  ggtitle('IncomeRange-Occupation')
+```
+
+
+### TradesNeverDelinquent-LoanOriginalAmount_mean
+    这里将LoanOriginalAmount轴变量做了一个平均值的处理，使得图形减少了干扰的噪点，可以看出初始贷款金额与从不欠款比例有正相关性。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#使用散点图探索TradesNeverDelinquent-LoanOriginalAmount_mean
+#对y轴进行mean平均值转换
+#对图形加入平滑器
+ggplot(aes(x = TradesNeverDelinquent..percentage., y = LoanOriginalAmount), 
+       data = df_loan1)+
+  geom_point(stat = 'summary', fun.y = mean)+
+  geom_smooth()+
+  ylab('LoanOriginalAmount_mean')+
+  ggtitle('TradesNeverDelinquent-LoanOriginalAmount_mean')
+```
+
+
+### DebtToIncomeRatio-LoanOriginalAmount_mean
+    通过观察图形，初始贷款金额与代收比不太具有相关性（图形后半段点比较散乱）
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#用散点图探索DebtToIncomeRatio-LoanOriginalAmount_mean
+#对y轴进行mean转换
+#对图形加入平滑器
+ggplot(aes(x = DebtToIncomeRatio, y = LoanOriginalAmount), data = df_loan1)+
+  geom_point(stat = 'summary', fun.y = mean)+
+  scale_x_continuous(limits = c(0.0000,1.1000))+
+  geom_smooth()+
+  ylab('LoanOriginalAmount_mean')+
+  ggtitle('DebtToIncomeRatio-LoanOriginalAmount_mean')
+```
+
+
+### BorrowerAPR-DebtToIncomeRatio
+通过图形观察，债收比和年化率不太有相关性。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#用散点图探索DebtToIncomeRatio-LoanOriginalAmount_mean
+ggplot(aes(x = BorrowerAPR, y = DebtToIncomeRatio), data = df_loan1)+
+  geom_point(alpha = 1/3, position = 'jitter')+
+  scale_y_continuous(limits = c(0.0000,1.1000))+
+  ggtitle('BorrowerAPR-DebtToIncomeRatio')
+```
+
+
+### DebtToIncomeRatio-TotalCreditLinespast7years_mean
+    将7年总贷款次数做一个平均值的处理后，图形比较好观察，发现债收比和7年总贷款次数呈正相关。
+    
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#用散点图探索DebtToIncomeRatio-TotalCreditLinespast7years_mean
+#对y轴进行mean转换
+#加入平滑器
+ggplot(aes(x = DebtToIncomeRatio, y = TotalCreditLinespast7years), data = df_loan1)+
+  geom_point(alpha = 1/3, stat = 'summary', fun.y = mean)+
+  scale_x_continuous(limits = c(0.0000,0.4000))+
+  ylab('TotalCreditLinespast7years_mean')+
+  geom_smooth()+
+  ggtitle('DebtToIncomeRatio-TotalCreditLinespast7years_mean')
+```
+
+
+### BorrowerAPR-LoanOriginalAmount
+  通过图形观察，初始贷款金额与年化率之间并不存在相关性。
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#用散点图探索BorrowerAPR-LoanOriginalAmount变量
+#对y轴进行log10转换
+ggplot(aes(x = BorrowerAPR, y = LoanOriginalAmount), data = df_loan1)+
+  geom_point(alpha = 1/3)+
+  scale_y_log10()+
+  ylab('LoanOriginalAmount_log10')+
+  ggtitle('BorrowerAPR-LoanOriginalAmount')
+```
+
+# 双变量分析
+
+### 探讨你在这部分探究中观察到的一些关系。这些感兴趣的特性与数据集内其他特性有什么区别？
+- 贷款评级高的群体，年化率越低。
+- 信用度高的贷款还款完成情况占比高。
+- 低贷款等级贷款数量以及欠款数量明显大于高贷款等级。
+- 有房产的人贷款评级偏高的比例比没有房产的人高。
+- 将变量LoanOriginalAmount用log10转换之后，可以更明显看出贷款评级越高，初始贷款额平均值越高。
+- 贷款评级越高的人，贷款中从不欠款的比例越高。
+- 将LoanOriginalAmount变量做了一个平均值的处理，使得图形减少了干扰的噪点，可以看出初始贷款金额与从不欠款比例有正相关性。
+- 将7年总贷款次数做一个平均值的处理后，图形比较好观察，发现债收比和7年总贷款次数呈正相关。
+### 你是否观察到主要特性与其他特性之间的有趣关系？
+- 贷款评级高的群体，年化率越低。
+- 初始贷款金额与贷款评级，从不欠款率等特性均有关
+### 你发现最强的关系是什么？
+- 初始贷款金额与从不欠款比例有正相关性。
+- 债收比和7年总贷款次数呈正相关。
+
+## 多变量绘图选择
+### BorrowerAPR-LoanOriginalAmount-CreditGrade
+    在原图的基础上多增加信用等级的变量，可以看出信用等级越高，贷款金额越高，年化率越低，图形坐上部分颜色越浅；与之对应的是行用等级越低，图形颜色越深，贷款金额越低，年化率也越高。
+    
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#在原图基础上加入CreditGrade变量
+#使用scale_color_brewer对图形进行涂色
+ggplot(aes(x = BorrowerAPR, y = LoanOriginalAmount), data = df_loan1)+
+  geom_point(alpha = 1/3, aes(color = CreditGrade))+
+  scale_y_log10()+
+  scale_color_brewer(type = 'seq', palette = 'Greens')+
+  theme_dark()+
+  ylab('LoanOriginalAmount_log10')+
+  ggtitle('BorrowerAPR-LoanOriginalAmount-CreditGrade')
+```
+
+
+### CreditGrade-LoanOriginalAmount_log10-IncomeRange
+    通过观察看出，有收入的群体中信用等级越高，初始贷款金额越高，而无业的群体中二者的相关性则不高，可见无业人群中的初始贷款金额需要考量的因素较有收入群体相对来说复杂一些。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#在原图基础上用信用评级进行分面
+ggplot(aes(x = CreditGrade, y = LoanOriginalAmount), data = df_loan1)+
+  geom_boxplot()+
+  scale_y_log10()+
+  facet_wrap(~IncomeRange)+
+  ylab('LoanOriginalAmount_log10')+
+  ggtitle('CreditGrade-LoanOriginalAmount_log10-IncomeRange')
+```
+
+
+### TradesNeverDelinquent-LoanOriginalAmount_mean-IsBorrowerHomeowner
+    通过图像观察，增加了房产这一变量，可以看出，有房产的群体的初始贷款金额比没有房产的人多，说明有房产的群体抗风险能力更强，还款能力更强。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#在原图基础上加入有无房产变量
+ggplot(aes(x = TradesNeverDelinquent..percentage., y = LoanOriginalAmount), 
+       data = df_loan1)+
+  geom_point(stat = 'summary', fun.y = mean, aes(color = IsBorrowerHomeowner))+
+  geom_smooth()+
+  scale_y_continuous()+
+  ylab('LoanOriginalAmount_mean')+
+  ggtitle('TradesNeverDelinquent-LoanOriginalAmount_mean-IsBorrowerHomeowner')
+```
+
+
+### DebtToIncomeRatio-TotalCreditLinespast7years_mean
+    通过图形观察，在增加了贷款状态变量后发现，违约过的群体贷款次数更多，负债也相对更高一些。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#在原图基础上计入LoanStatus变量
+ggplot(aes(x = DebtToIncomeRatio, y = TotalCreditLinespast7years), data = df_loan1)+
+  geom_point(alpha = 1/3, stat = 'summary', fun.y = mean, aes(color = LoanStatus))+
+  scale_x_continuous(limits = c(0.0000,0.4000))+
+  ylab('TotalCreditLinespast7years_mean')+
+  geom_smooth()+
+  ggtitle('DebtToIncomeRatio-TotalCreditLinespast7years_mean')
+```
+
+# 多变量分析
+
+###  探讨你在这部分探究中观察到的一些关系。通过观察感兴趣的特性，是否存在相互促进的特性？
+- 再加入了信用评级涂色后，可以明显看出贷款金额与年化率不同颜色的分区，使人一眼很直观的看出信用评级对这两个变量的影响，对于这两个变量，信用评级占主导的作用，信用评级高，则分布往左上方靠近，评级低则往右下靠近。
+- 有收入的群体中信用等级越高，初始贷款金额越高，而无业的群体中二者的相关性则不高。
+- 加入了有无房产的变量后，很明显将原来的图形切割成了两个部分，有房产的群体的初始贷款金额比没有房产的人多，说明有房产的群体抗风险能力更强，还款能力更强。
+- 违约过的群体贷款次数更多，负债也相对更高一些。
+- 
+### 这些特性之间是否存在有趣或惊人的联系呢？
+- 在没有收入的群体当中，初始贷款金额可能受更多因素的影响，贷款金额的考量可能不如有工作稳定收入的人那样标准化。
+- 有趣的点在于，通过图形可以看出有无房产在贷款额度上是一个比较重要的指标。
+
+
+# 定稿图与总结
+
+### 绘图一
+```{r echo=FALSE, message=FALSE, warning=FALSE,  Plot_One}
+p1 <- ggplot(aes(x = TotalCreditLinespast7years), data = df_loan1)+
+  geom_freqpoly(stat = 'count', aes(color = CreditGrade))+
+  scale_x_continuous(limits = c(2,87))+
+  ggtitle('CreditGrade-TotalCreditLinespast7years')
+p2 <- ggplot(aes(x = DelinquenciesLast7Years), data = df_loan1)+
+  geom_freqpoly(stat = 'count', aes(color = CreditGrade))+
+  scale_x_continuous(limits = c(0,2.5))+
+  ggtitle('CreditGrade-DelinquenciesLast7Years')
+grid.arrange(p1, p2, ncol = 1)
+```
+
+### 描述一
+    通过两个图的对比，低贷款等级贷款数量以及欠款数量明显大于高贷款等级
+
+### 绘图二
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Two}
+ggplot(aes(x = TradesNeverDelinquent..percentage., y = LoanOriginalAmount), 
+       data = df_loan1)+
+  geom_point(stat = 'summary', fun.y = mean, aes(color = IsBorrowerHomeowner))+
+  geom_smooth()+
+  scale_y_continuous()+
+  ylab('LoanOriginalAmount_mean')+
+  ggtitle('TradesNeverDelinquent-LoanOriginalAmount_mean-IsBorrowerHomeowner')
+```
+
+### 描述二
+    通过图像观察，增加了房产这一变量，可以看出，有房产的群体的初始贷款金额比没有房产的人多，说明有房产的群体抗风险能力更强，还款能力更强,同时有无房产在贷款额度方面也是一个重要的评估指标。
+
+### 绘图三
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Three}
+ggplot(aes(x = DebtToIncomeRatio, y = TotalCreditLinespast7years), data = df_loan1)+
+  geom_point(alpha = 1/3, stat = 'summary', fun.y = mean, aes(color = LoanStatus))+
+  scale_x_continuous(limits = c(0.0000,0.4000))+
+  ylab('TotalCreditLinespast7years_mean')+
+  geom_smooth()+
+  ggtitle('DebtToIncomeRatio-TotalCreditLinespast7years_mean_LoanStatus')
+```
+
+### 描述三
+    通过图形观察，在增加了贷款状态变量后发现，违约过的群体贷款次数更多，负债也相对更高一些。
+
+# 反思
+    通过这次Prosper贷款数据集的探索，我觉得主要有几个部分需要注意：
+- 对于特征的选取很重要，除开技术层面的东西，对于数据集的背景行业等，需要有一定的针对性的知识储备，特征选取决定了，数据探索的质量，当然，这个过程可以不断的迭代。
+- 最初在对TradesNeverDelinquent-LoanOriginalAmount_mean双变量进行可视化时，我没有对y轴变量进行处理，得到的图形乍一看，不能看出显著的关系，噪音也很多，当我哦对y轴变量进行mean平均值处理后，图形变成了清晰的正相关的曲线，可见有时对于变量进行转换处理，会对可视化有帮助，可以发现未转换数据前的关系内容。
+- 同样，当我对DebtToIncomeRatio-TotalCreditLinespast7years_mean双变量，y轴也进行mean平均值处理后，也得到了清晰的曲线正相关图形。
+- 如何使用log10,mean等数据处理方式，是一个我需要不断深化的方面，对此还是有一些模糊。
+- 我觉得如果按照主要的变量，如贷款评级BorrowerAPR,对数据集进行分类，并将各连续变量做一定聚合，如mean，median，str等，再进行探索，可以获得更深入的一些结论，丰富探索的内容。
